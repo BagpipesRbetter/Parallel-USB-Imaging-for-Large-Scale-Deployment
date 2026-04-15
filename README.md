@@ -60,6 +60,7 @@ The process involves designating one "Master" USB drive as the source and clonin
 
 **Example Output:**
 ```text
+❯ lsblk -dno NAME,SIZE,MODEL
 sda      28.6G SanDisk 3.2Gen1  # MASTER DRIVE
 sdb      28.7G SanDisk 3.2Gen1  # Target 1
 sdc      28.6G SanDisk 3.2Gen1  # Target 2
