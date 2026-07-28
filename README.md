@@ -1,64 +1,100 @@
 # Parallel USB Imaging for Large-Scale Deployment
 
-**Subject:** OS Imaging Strategy for Mass USB Flash Drive Deployment  
+**Subject:** OS Imaging Strategy for Mass USB Flash Drive Deployment
 **Method:** Linux-based Parallel Bit-Stream Cloning (`dcfldd`)
 
 ---
 
 ## Overview
-To meet the requirement of imaging **600+ loaner laptops** (using 24 flash drives) efficiently, I implemented a Linux-based parallel imaging workflow. Standard imaging tools, such as Rufus or BalenaEtcher, typically process only one drive at a time. By utilizing the `dcfldd` utility, I transitioned to a **one-to-many** write model, allowing for up to **32 simultaneous USB writes** per workstation.
+
+This procedure gives instructions to make OS images for more than 600 laptops. You will use 24 flash drives and a Linux-based parallel imaging procedure. Standard tools (for example: Rufus or BalenaEtcher) write data to one drive at a time. The `dcfldd` utility writes data to a maximum of 32 USB drives at the same time on one workstation.
 
 ---
 
 ## 1. Tool Installation
-The primary utility used is **`dcfldd`**, an enhanced version of the standard `dd` tool developed by the Department of Defense Computer Forensics Laboratory. It is designed for high-integrity imaging; unlike standard `dd`, it supports multiple simultaneous outputs. 
 
-> **Note on Software Status:** This tool is legacy software (last official update in 2006) and is currently maintained by volunteers. Special thanks to the [Resurrecting Open Source Projects](https://github.com/resurrecting-open-source-projects) foundation on GitHub for keeping up-to-date versions in modern package managers.
+You must use the `dcfldd` utility. The Department of Defense Computer Forensics Laboratory made this utility. It is a modified version of the standard `dd` tool. It supports multiple outputs at the same time.
+
+> **NOTE:** The `dcfldd` utility is legacy software (last official update in 2006). Volunteers maintain the utility. You can get the utility from the Resurrecting Open Source Projects foundation on GitHub.
+> 
+> 
 
 ### Supported Platforms
 
-#### **Debian / Ubuntu**
+**Debian or Ubuntu**
+To install the utility on Debian or Ubuntu, run this command:
+
 ```bash
 sudo apt update && sudo apt install dcfldd
-```
-* **Source:** [Debian Package Tracker](https://packages.debian.org/trixie/dcfldd)
 
-#### **Arch Linux**
+```
+
+* **Source:** Debian Package Tracker.
+
+
+
+**Arch Linux**
+To install the utility on Arch Linux, run this command:
+
 ```bash
 yay -S dcfldd
-```
-* **Source:** [AUR Package](https://aur.archlinux.org/packages/dcfldd)
 
-#### **Fedora**
+```
+
+* **Source:** AUR Package.
+
+
+
+**Fedora**
+To install the utility on Fedora, run this command:
+
 ```bash
 sudo dnf install dcfldd
+
 ```
-* **Source:** [Fedora Packages](https://packages.fedoraproject.org/pkgs/dcfldd/dcfldd/epel-8.html)
+
+* **Source:** Fedora Packages.
+
+
 
 ---
 
-### ⚠️ Platform Warnings
+### Platform Warnings
 
-> **MacOS (NOT RECOMMENDED)** > If necessary, use Homebrew: `brew install dcfldd`.  
-> *Warning:* macOS automatically mounts drives upon connection, which can interfere with the raw bit-stream copy.
+> **CAUTION:** DO NOT USE MACOS. If you must use macOS, use Homebrew to install the utility: `brew install dcfldd`. macOS mounts drives automatically when you connect them. This can cause damage to the raw bit-stream copy.
+> 
+> 
 
-> **Windows (NOT RECOMMENDED)** > Use binaries from [SourceForge](https://dcfldd.sourceforge.net/) or build from the [GitHub source](https://github.com/resurrecting-open-source-projects/dcfldd).  
-> *Warning:* Like macOS, Windows' auto-mounting and background file indexing can corrupt the target drive image if not properly ejected.
+> **CAUTION:** DO NOT USE WINDOWS. If you must use Windows, use binaries from SourceForge or compile from the GitHub source. Windows mounts drives automatically and makes file indexes in the background. This can cause damage to the target drive image if you do not eject the drive correctly.
+> 
+> 
 
 ---
 
 ## 2. General Procedure
-The process involves designating one "Master" USB drive as the source and cloning its bit structure directly to all target drives.
+
+In this procedure, you make one USB drive the master drive. You copy the data from the master drive directly to all target drives.
 
 ### Step A: Hardware Preparation
-1.  **Source Identification:** Connect the "Master" drive (containing the prepped Windows image) to a dedicated high-speed port.
-2.  **Target Connection:** Connect target drives via USB-C hubs and standard USB-A ports.
-3.  **Device Verification:** Run the following command to verify device paths:
-    ```bash
-    lsblk -dno NAME,SIZE,MODEL
-    ```
+
+1. Connect the master drive to a high-speed USB port.
+
+
+2. Connect the target drives to USB-C hubs and standard USB-A ports.
+
+
+3. Run this command to make sure that the device paths are correct:
+
+
+```bash
+lsblk -dno NAME,SIZE,MODEL
+
+```
+
+
 
 **Example Output:**
+
 ```text
 ❯ lsblk -dno NAME,SIZE,MODEL
 sda      28.6G SanDisk 3.2Gen1  # MASTER DRIVE
@@ -68,29 +104,63 @@ sdd      28.6G SanDisk 3.2Gen1  # Target 3
 sde      28.6G SanDisk 3.2Gen1  # Target 4
 zram0    15.5G                  # SWAP MEMORY - DO NOT TOUCH
 nvme0n1 953.9G SAMSUNG MZVL21   # BOOT DRIVE - DO NOT TOUCH
+
 ```
 
 ### Step B: Command Execution
-Initiate the parallel write using this structure:
+
+Start the parallel write procedure with this command structure:
+
 ```bash
 sudo dcfldd if=/dev/source_drive of=/dev/target1 of=/dev/target2 of=/dev/target3 ...
-```
-* **`if=` (Input File):** The source master drive path.
-* **`of=` (Output File):** The destination drive paths. `dcfldd` forks the data stream to all targets simultaneously; writing to 10 drives takes roughly the same time as writing to one.
 
-### Step C: Finalization (The 'Sync' Phase)
-Once the transfer is complete, the Linux kernel may still hold data in the write cache. To ensure integrity, you **must** execute:
+```
+
+* **`if=` (Input File):** This is the path for the master drive.
+
+
+* **`of=` (Output File):** This is the path for the target drive. The `dcfldd` utility sends the data to all target drives at the same time. To write data to 10 drives requires the same time as to write data to one drive.
+
+
+
+### Step C: Finalization (The Sync Phase)
+
+When the transfer is complete, the Linux kernel can keep data in the write cache. To make sure that data has integrity, do these steps:
+
+1. Run this command:
+
+
 ```bash
 sync
+
 ```
-Once the terminal prompt returns, the drives are physically flashed and safe for removal. Unlike Windows or macOS, there is no need to manually "unmount" as the drives were never mounted by the filesystem.
+
+
+2. Wait for the terminal prompt to show again.
+
+
+3. Remove the drives.
+
+
+
+> **NOTE:** It is not necessary to manually unmount the drives. The filesystem did not mount the drives.
+> 
+> 
 
 ---
 
 ## 3. Key Efficiency Factors
-* **Scalability:** Bypasses the overhead of graphical tools. Throughput scales based on the number of available USB controllers on the motherboard.
-* **Integrity:** `dcfldd` provides real-time hashing and block-count reporting. Hardware failures on a specific stick are identified immediately without affecting the rest of the batch.
-* **Time Savings:** By imaging in batches of nine (limited by my current hardware/dock configuration), I significantly reduced hands-on time. The theoretical maximum is limited only by the USB-A ports supported by the machine's USB controller.
+
+* **Scalability:** This procedure does not use graphical tools. The data transfer speed changes in relation to the number of available USB controllers on the motherboard.
+
+
+* **Integrity:** The `dcfldd` utility gives real-time hashing and block-count reports. You will see hardware failures on a specific drive immediately. A failure on one drive does not have an effect on the other drives.
+
+
+* **Time Savings:** Image drives in batches of nine to decrease work time. The maximum number of drives is limited by the USB-A ports that the USB controller supports.
+
+
 
 ---
-**Verification:** Periodically test one drive from each batch on a target laptop to ensure the "Master" image remains viable and hardware integrity is maintained.
+
+**Verification:** Test one drive from each batch on a target laptop. Do this periodically to make sure that the master image is good and the hardware operates correctly.
